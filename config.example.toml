@@ -1,0 +1,6 @@
+[feishu]
+app_id = "cli_xxx"
+app_secret = "xxx"
+
+[defaults]
+# model = "claude-sonnet-4-6"
