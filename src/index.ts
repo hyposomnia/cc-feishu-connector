@@ -8,8 +8,8 @@ async function main() {
   const configPath = process.argv[2];
   const config = loadConfig(configPath);
 
-  const gateway = new FeishuGateway(config.feishu);
   const callbackRouter = new CallbackRouter();
+  const gateway = new FeishuGateway(config.feishu, callbackRouter);
   const sessionManager = new SessionManager(config, gateway, callbackRouter);
   const commandRouter = new CommandRouter(
     sessionManager,
@@ -23,6 +23,11 @@ async function main() {
     // Check if it's a slash command or session picker response
     const handled = await commandRouter.route(msg);
     if (handled) return;
+
+    // Check if it's a question response
+    if (sessionManager.handleQuestionResponse(msg.chatId, msg.text)) {
+      return;
+    }
 
     // Forward to active session
     const session = sessionManager.getSession(msg.chatId);

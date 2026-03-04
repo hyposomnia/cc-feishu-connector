@@ -73,7 +73,10 @@ export class SessionPicker {
           this.pickerMessages.delete(chatId);
         }
 
-        this.gateway.sendText(chatId, "选择超时，已取消。");
+        // Clean up stored sessions
+        delete (this as any)[`_sessions_${chatId}`];
+
+        // Don't send timeout message to avoid triggering new events
         resolve(undefined);
       }, 60000); // 60 second timeout
 
@@ -89,6 +92,9 @@ export class SessionPicker {
           }).catch(() => {});
           this.pickerMessages.delete(chatId);
         }
+
+        // Clean up stored sessions
+        delete (this as any)[`_sessions_${chatId}`];
 
         resolve(sessionId);
       });
@@ -108,21 +114,28 @@ export class SessionPicker {
 
     const choice = parseInt(text.trim(), 10);
     if (isNaN(choice)) {
+      // Not a number, ignore but don't consume the message
       return false;
     }
 
     const sessions = (this as any)[`_sessions_${chatId}`];
+    if (!sessions) {
+      // Sessions data missing, cancel
+      resolver(undefined);
+      return true;
+    }
+
     delete (this as any)[`_sessions_${chatId}`];
 
     if (choice === 0) {
-      this.gateway.sendText(chatId, "已取消。");
       resolver(undefined);
       return true;
     }
 
     if (choice < 1 || choice > Math.min(10, sessions.length)) {
-      this.gateway.sendText(chatId, `无效的选择。请输入 1-${Math.min(10, sessions.length)} 之间的数字。`);
-      resolver(undefined);
+      this.gateway.sendText(chatId, `无效的选择。请输入 1-${Math.min(10, sessions.length)} 之间的数字，或输入 0 取消。`);
+      // Don't resolve, let user try again
+      (this as any)[`_sessions_${chatId}`] = sessions;
       return true;
     }
 

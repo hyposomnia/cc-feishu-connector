@@ -4,12 +4,13 @@
  * Each session = one Claude Code subprocess in a given working directory.
  */
 import { ClaudeAgent } from "../agent/claude.js";
-import type { ClaudeEvent, PermissionRequestEvent, ResultEvent } from "../agent/types.js";
+import type { ClaudeEvent, PermissionRequestEvent, QuestionEvent, ResultEvent } from "../agent/types.js";
 import type { FeishuGateway } from "../gateway/feishu.js";
 import type { CallbackRouter } from "../gateway/callback.js";
 import type { AppConfig } from "../config.js";
 import { StreamingCard } from "../renderer/streaming.js";
 import { PermissionHandler } from "../permission/handler.js";
+import { QuestionHandler } from "../question/handler.js";
 import { MessageQueue } from "./queue.js";
 import { SessionStore } from "./store.js";
 
@@ -30,11 +31,14 @@ export class Session {
   private agent: ClaudeAgent;
   private queue: MessageQueue;
   private gateway: FeishuGateway;
+  private callbackRouter: CallbackRouter;
   private permissionHandler: PermissionHandler;
+  private questionHandler: QuestionHandler;
   private currentCard?: StreamingCard;
   private idleTimer?: ReturnType<typeof setTimeout>;
   private _chatId: string;
   private sessionStore: SessionStore;
+  private userInterrupted = false; // Track if user manually interrupted
 
   constructor(
     id: string,
@@ -42,7 +46,9 @@ export class Session {
     chatId: string,
     startOpts: StartOptions,
     gateway: FeishuGateway,
+    callbackRouter: CallbackRouter,
     permissionHandler: PermissionHandler,
+    questionHandler: QuestionHandler,
     sessionStore: SessionStore,
   ) {
     this.id = id;
@@ -50,7 +56,9 @@ export class Session {
     this._chatId = chatId;
     this.startOpts = startOpts;
     this.gateway = gateway;
+    this.callbackRouter = callbackRouter;
     this.permissionHandler = permissionHandler;
+    this.questionHandler = questionHandler;
     this.sessionStore = sessionStore;
 
     this.agent = new ClaudeAgent({
@@ -73,10 +81,58 @@ export class Session {
     this.queue.enqueue(text, chatId, messageId);
   }
 
+  /** Interrupt the current execution. */
+  async interrupt(): Promise<void> {
+    if (this.agent.alive && this.agent.busy) {
+      this.userInterrupted = true;
+
+      // Mark current card as interrupted
+      if (this.currentCard) {
+        const renderer = this.currentCard.getRenderer();
+        renderer.processEvent({ type: "error", error: "Interrupted by user" });
+        // Force immediate update to show interrupted state
+        await this.currentCard.processEvent({ type: "error", error: "Interrupted by user" }).catch(() => {});
+      }
+
+      // Send SIGINT to Claude Code process (this will cause it to exit)
+      this.agent.interrupt();
+
+      // Wait a bit for process to exit
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Restart the process so session remains active
+      if (!this.agent.alive) {
+        this.agent.start();
+      }
+    }
+  }
+
   /** Start the underlying Claude Code process. */
   start(): void {
     this.agent.start();
     this.resetIdleTimer();
+
+    // Show last card if resuming
+    this.showLastCardIfExists();
+  }
+
+  /** Show the last card if it exists in the store. */
+  private async showLastCardIfExists(): Promise<void> {
+    const lastCard = this.sessionStore.getLastCard(this.startOpts.cwd);
+    if (lastCard && lastCard.chatId === this._chatId) {
+      // Check if the card is recent (within last 24 hours)
+      const age = Date.now() - lastCard.timestamp;
+      if (age < 24 * 60 * 60 * 1000) {
+        try {
+          await this.gateway.sendText(
+            this._chatId,
+            `📋 Session resumed. Last interaction was ${Math.floor(age / 60000)} minutes ago.`
+          );
+        } catch (err) {
+          console.error("[session] Failed to show resume message:", err);
+        }
+      }
+    }
   }
 
   /** Stop and clean up. */
@@ -111,11 +167,26 @@ export class Session {
     // Wait for the turn to complete
     await new Promise<void>((resolve) => {
       const onIdle = () => {
-        this.agent.removeListener("idle", onIdle);
+        cleanup();
         resolve();
       };
+      const onExit = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        this.agent.removeListener("idle", onIdle);
+        this.agent.removeListener("exit", onExit);
+      };
       this.agent.on("idle", onIdle);
+      this.agent.on("exit", onExit);
     });
+
+    // Save the last card state
+    const messageId = this.currentCard.getMessageId();
+    if (messageId) {
+      this.sessionStore.saveLastCard(this.startOpts.cwd, messageId, chatId);
+    }
 
     this.currentCard = undefined;
   }
@@ -125,6 +196,8 @@ export class Session {
     let stderrBuffer = "";
 
     this.agent.on("event", async (event: ClaudeEvent) => {
+      console.log("[session] Received event:", event.type, event.type === "tool_use" ? `(${(event as any).name})` : "");
+
       // Capture session ID from result events
       if (event.type === "result") {
         const resultEvent = event as ResultEvent;
@@ -142,12 +215,35 @@ export class Session {
         return;
       }
 
+      // Generic interception: any tool with "questions" field in input
+      if (event.type === "tool_use") {
+        console.log("[session] tool_use detected:", event.name);
+        console.log("[session] tool input keys:", Object.keys(event.input || {}));
+
+        if (event.input && "questions" in event.input) {
+          console.log("[session] Intercepting interactive tool:", event.name);
+          await this.questionHandler.askQuestion(
+            event.input as any,
+            this.agent,
+            this._chatId,
+            event.tool_use_id,
+          );
+          return;
+        }
+      }
+
       if (this.currentCard) {
         await this.currentCard.processEvent(event);
       }
     });
 
     this.agent.on("exit", (code: number | null, signal: string | null) => {
+      // Don't show error message if user manually interrupted
+      if (this.userInterrupted) {
+        this.userInterrupted = false;
+        return;
+      }
+
       // Show stderr if process failed
       let message = `Claude Code process exited (code=${code}).`;
       if (code !== 0 && stderrBuffer.trim()) {
@@ -182,18 +278,27 @@ export class SessionManager {
   /** One session per chat (chatId → Session). */
   private sessions = new Map<string, Session>();
   private gateway: FeishuGateway;
+  private callbackRouter: CallbackRouter;
   private permissionHandler: PermissionHandler;
+  private questionHandler: QuestionHandler;
   private sessionStore: SessionStore;
 
   constructor(_config: AppConfig, gateway: FeishuGateway, callbackRouter: CallbackRouter) {
     this.gateway = gateway;
+    this.callbackRouter = callbackRouter;
     this.permissionHandler = new PermissionHandler(gateway, callbackRouter);
+    this.questionHandler = new QuestionHandler(gateway);
     this.sessionStore = new SessionStore();
   }
 
   /** Get the session store (for CommandRouter). */
   getSessionStore(): SessionStore {
     return this.sessionStore;
+  }
+
+  /** Handle a potential question response. Returns true if handled. */
+  handleQuestionResponse(chatId: string, text: string): boolean {
+    return this.questionHandler.handleResponse(chatId, text);
   }
 
   /** Start a new session in the given chat. Stops any existing one first. */
@@ -208,7 +313,9 @@ export class SessionManager {
       chatId,
       opts,
       this.gateway,
+      this.callbackRouter,
       this.permissionHandler,
+      this.questionHandler,
       this.sessionStore,
     );
     session.start();

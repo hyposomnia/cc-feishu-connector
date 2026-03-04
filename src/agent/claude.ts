@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { ClaudeEventParser } from "./events.js";
-import type { ClaudeEvent, ClaudeInput, PermissionResponse, UserMessage } from "./types.js";
+import type { ClaudeEvent, ClaudeInput, PermissionResponse, QuestionResponse, ToolResultInput, UserMessage } from "./types.js";
 
 export interface ClaudeAgentOptions {
   /** Working directory for the subprocess. */
@@ -118,6 +118,35 @@ export class ClaudeAgent extends EventEmitter {
       response,
     };
     this.write(msg);
+  }
+
+  /** Send a question response. */
+  sendQuestionResponse(answers: Record<string, string>): void {
+    const msg: QuestionResponse = {
+      type: "question_response",
+      answers,
+    };
+    this.write(msg);
+  }
+
+  /** Send a tool result. */
+  sendToolResult(toolUseId: string, content: string, isError: boolean): void {
+    const msg: ToolResultInput = {
+      type: "tool_result",
+      tool_use_id: toolUseId,
+      content,
+      is_error: isError,
+    };
+    this.write(msg);
+  }
+
+  /** Interrupt the current execution by sending SIGINT. */
+  interrupt(): void {
+    if (this.proc && this.proc.exitCode === null) {
+      this.proc.kill("SIGINT");
+      this._busy = false;
+      this.emit("idle");
+    }
   }
 
   /** Kill the subprocess. */

@@ -13,7 +13,19 @@ export interface PermissionResponse {
   response: "allow" | "deny" | "allow_all";
 }
 
-export type ClaudeInput = UserMessage | PermissionResponse;
+export interface QuestionResponse {
+  type: "question_response";
+  answers: Record<string, string>;
+}
+
+export interface ToolResultInput {
+  type: "tool_result";
+  tool_use_id: string;
+  content: string;
+  is_error?: boolean;
+}
+
+export type ClaudeInput = UserMessage | PermissionResponse | QuestionResponse | ToolResultInput;
 
 // --- Output events (stdout from Claude Code) ---
 
@@ -61,6 +73,22 @@ export interface PermissionRequestEvent {
   message: string;
 }
 
+export interface QuestionEvent {
+  type: "question";
+  questions: Array<{
+    question: string;
+    header: string;
+    options: Array<{
+      label: string;
+      description: string;
+    }>;
+    multiSelect: boolean;
+  }>;
+  metadata?: {
+    source?: string;
+  };
+}
+
 export interface ErrorEvent {
   type: "error";
   error: string;
@@ -100,6 +128,7 @@ export type ClaudeEvent =
   | ToolResultEvent
   | ResultEvent
   | PermissionRequestEvent
+  | QuestionEvent
   | ErrorEvent
   | SystemEvent
   | AssistantEvent

@@ -56,6 +56,9 @@ export class CommandRouter {
         return this.handleStart(msg, args);
       case "stop":
         return this.handleStop(msg);
+      case "esc":
+      case "interrupt":
+        return this.handleInterrupt(msg);
       case "status":
         return this.handleStatus(msg);
       case "config":
@@ -128,6 +131,17 @@ export class CommandRouter {
     return true;
   }
 
+  private async handleInterrupt(msg: IncomingMessage): Promise<boolean> {
+    const session = this.sessionManager.getSession(msg.chatId);
+    if (session) {
+      await session.interrupt();
+      await this.gateway.sendText(msg.chatId, "⏹ Execution interrupted. Session is still active.");
+    } else {
+      await this.gateway.sendText(msg.chatId, "No active session.");
+    }
+    return true;
+  }
+
   private async handleStatus(msg: IncomingMessage): Promise<boolean> {
     const session = this.sessionManager.getSession(msg.chatId);
     if (session) {
@@ -171,6 +185,7 @@ export class CommandRouter {
         "",
         "`/start <path> [flags...]` — Start Claude Code in a directory",
         "`/stop` — Stop current session",
+        "`/esc` or `/interrupt` — Interrupt current execution (like Ctrl+C)",
         "`/status` — Show session info",
         "`/config` — View/edit configuration",
         "`/help` — Show this message",

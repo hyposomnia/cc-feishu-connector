@@ -14,6 +14,13 @@ interface SessionData {
   sessionId: string;
   cwd: string;
   lastUsed: number;
+  lastCard?: CardState;
+}
+
+export interface CardState {
+  messageId: string;
+  chatId: string;
+  timestamp: number;
 }
 
 interface StoreData {
@@ -112,6 +119,26 @@ export class SessionStore {
     const normalized = resolve(cwd);
     delete this.data.sessions[normalized];
     this.persist();
+  }
+
+  /** Save the last card state for a session. */
+  saveLastCard(cwd: string, messageId: string, chatId: string): void {
+    const normalized = resolve(cwd);
+    const session = this.data.sessions[normalized];
+    if (session) {
+      session.lastCard = {
+        messageId,
+        chatId,
+        timestamp: Date.now(),
+      };
+      this.persist();
+    }
+  }
+
+  /** Get the last card state for a session. */
+  getLastCard(cwd: string): CardState | undefined {
+    const normalized = resolve(cwd);
+    return this.data.sessions[normalized]?.lastCard;
   }
 
   /** Normalize path the same way Claude Code does: replace / with -. */

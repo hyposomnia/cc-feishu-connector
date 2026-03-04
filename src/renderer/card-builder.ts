@@ -52,6 +52,7 @@ export interface ActionItem {
   tag: "button";
   text: { tag: "plain_text"; content: string };
   type: "primary" | "danger" | "default";
+  size?: "tiny" | "small" | "medium" | "large";
   value: Record<string, unknown>;
 }
 

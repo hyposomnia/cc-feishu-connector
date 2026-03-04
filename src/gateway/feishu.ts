@@ -4,6 +4,7 @@ import {
   EventDispatcher,
 } from "@larksuiteoapi/node-sdk";
 import type { FeishuConfig } from "../config.js";
+import type { CallbackRouter } from "./callback.js";
 
 export interface IncomingMessage {
   messageId: string;
@@ -21,10 +22,11 @@ export class FeishuGateway {
   private wsClient: WSClient;
   private dispatcher: EventDispatcher;
   private messageHandler?: MessageHandler;
+  private callbackRouter?: CallbackRouter;
   private processedMessages = new Set<string>();
   private readonly MESSAGE_CACHE_SIZE = 1000;
 
-  constructor(config: FeishuConfig) {
+  constructor(config: FeishuConfig, callbackRouter?: CallbackRouter) {
     this.client = new Client({
       appId: config.app_id,
       appSecret: config.app_secret,
@@ -37,6 +39,7 @@ export class FeishuGateway {
       appSecret: config.app_secret,
     });
 
+    this.callbackRouter = callbackRouter;
     this.setupEventHandlers();
   }
 
@@ -160,5 +163,32 @@ export class FeishuGateway {
         await this.messageHandler(incoming);
       },
     });
+
+    // Try multiple possible card action event names
+    const cardEventNames = [
+      "card.action.trigger",
+      "application.bot.menu_v6",
+      "card_action_trigger",
+      "interactive",
+    ];
+
+    for (const eventName of cardEventNames) {
+      this.dispatcher.register({
+        [eventName]: async (data) => {
+          console.log(`[feishu] Card event '${eventName}' received:`, JSON.stringify(data, null, 2));
+          if (!this.callbackRouter) return;
+
+          const { open_id, action } = data;
+          if (!action) return;
+
+          await this.callbackRouter.dispatch({
+            openId: open_id ?? "",
+            messageId: action.message_id ?? "",
+            actionValue: action.value ?? {},
+            actionTag: action.tag ?? "",
+          });
+        },
+      });
+    }
   }
 }

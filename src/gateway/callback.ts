@@ -28,10 +28,19 @@ export class CallbackRouter {
 
   /** Dispatch a card action event. Called by the Feishu gateway. */
   async dispatch(action: CardAction): Promise<void> {
+    console.log("[callback] Dispatching action:", JSON.stringify(action.actionValue));
+    console.log("[callback] Registered handlers:", Array.from(this.handlers.keys()));
+
     // Look for a matching handler by checking action value keys
     for (const [key, handler] of this.handlers) {
       if (key in action.actionValue) {
-        await handler(action);
+        console.log("[callback] Matched handler:", key);
+        try {
+          await handler(action);
+        } catch (err) {
+          console.error("[callback] Handler error:", err);
+          throw err;
+        }
         return;
       }
     }
