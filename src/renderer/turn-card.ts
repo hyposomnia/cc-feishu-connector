@@ -98,9 +98,6 @@ export class TurnCardRenderer {
 
       case "result":
         this.status = "done";
-        if (event.result) {
-          this.eventItems.push({ type: "text", text: event.result });
-        }
         this.costUsd = event.cost_usd;
         this.durationMs = event.duration_ms;
         this.tokens = event.tokens;

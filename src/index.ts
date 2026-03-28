@@ -35,9 +35,13 @@ async function main() {
     // Forward to active session
     const session = sessionManager.getSession(msg.chatId);
     if (!session) {
+      const aliases = workspaceStore.list();
+      const aliasHint = aliases.length > 0
+        ? `\n\nWorkspace aliases:\n${aliases.map(a => `\`/run ${a.alias}\` → \`${a.path}\``).join("\n")}`
+        : "\n\nTip: Use `/ws add <alias> <path>` to save workspace aliases.";
       await gateway.sendText(
         msg.chatId,
-        "No active session. Use `/start <path>` to start Claude Code.\n\nExample:\n`/start /Users/dy/my-project`\n`/start /Users/dy/my-project --resume`\n`/start /Users/dy/my-project --dangerously-skip-permissions`",
+        `No active session. Use \`/start <path>\` to start Claude Code.\n\nExample:\n\`/start /Users/dy/my-project\`\n\`/start /Users/dy/my-project --resume\`\n\`/start /Users/dy/my-project --dangerously-skip-permissions\`${aliasHint}`,
       );
       return;
     }
