@@ -121,16 +121,15 @@ export class TurnCardRenderer {
   buildCard(): Card {
     const elements: CardElement[] = [];
 
-    // Thinking section (collapsed when done)
+    // Thinking section
     const thinkingText = this.thinkingChunks.join("");
     if (thinkingText) {
       if (this.status === "done" || this.status === "error") {
-        // Collapsed summary
-        const preview = thinkingText.slice(0, 100).replace(/\n/g, " ");
-        elements.push(md(`💭 *Thinking:* ${preview}${thinkingText.length > 100 ? "..." : ""}`));
+        // Done: italic header to indicate completed thinking
+        elements.push(md(`💭 *Thinking*\n${lastBlock(thinkingText, 500)}`));
       } else {
-        // Show full thinking while in progress
-        elements.push(md(`💭 **Thinking**\n${truncateBlock(thinkingText, 500)}`));
+        // In progress: bold header
+        elements.push(md(`💭 **Thinking**\n${lastBlock(thinkingText, 500)}`));
       }
     }
 
@@ -212,4 +211,9 @@ export class TurnCardRenderer {
 function truncateBlock(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max) + "\n\n*... (truncated)*";
+}
+
+function lastBlock(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return "*...*\n\n" + text.slice(text.length - max);
 }
