@@ -1,6 +1,13 @@
-# cc-feishu
+# cc-feishu-connector
 
 Claude Code 飞书桥接服务 — 在飞书聊天窗口中使用 Claude Code。
+
+> **来源说明**：本项目 fork 自 [jawkjiang/cc-feishu](https://github.com/jawkjiang/cc-feishu)，在原项目基础上做了以下改动：
+> - 消息表情反应：收到消息立即添加 ⏳ 表情，回复后自动移除
+> - 工作目录别名系统：`/ws add/list/delete` 持久化别名，`/run <alias>` 快速启动
+> - 完整 thinking 显示：显示最后 500 字符而非截断摘要
+> - 修复重复内容 bug：result 事件文本不再与流式 text 事件重复
+> - 无会话提示增强：显示已配置的 workspace alias 列表
 
 ## 功能特性
 
@@ -19,7 +26,7 @@ Claude Code 飞书桥接服务 — 在飞书聊天窗口中使用 Claude Code。
 **推荐使用 npm 全局安装：**
 
 ```bash
-npm install -g @jawkjiang/cc-feishu
+npm install -g @hyposomnia/cc-feishu-connector
 ```
 
 安装后可以直接使用 `cc-feishu` 命令。
@@ -152,8 +159,8 @@ cc-feishu help                           # 显示帮助信息
 
 ```bash
 # 克隆仓库
-git clone https://github.com/jawkjiang/cc-feishu.git
-cd cc-feishu
+git clone https://github.com/hyposomnia/cc-feishu-connector.git
+cd cc-feishu-connector
 
 # 安装依赖
 npm install

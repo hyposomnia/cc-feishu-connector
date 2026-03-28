@@ -1,5 +1,5 @@
 {
-  "name": "@jawkjiang/cc-feishu",
+  "name": "@hyposomnia/cc-feishu-connector",
   "version": "0.2.0",
   "description": "Claude Code Feishu bridge - Connect Claude Code with Feishu bot for seamless AI-powered development workflow",
   "type": "module",
@@ -28,16 +28,16 @@
     "chatbot",
     "bridge"
   ],
-  "author": "jawkjiang",
+  "author": "hyposomnia",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jawkjiang/cc-feishu.git"
+    "url": "https://github.com/hyposomnia/cc-feishu-connector.git"
   },
   "bugs": {
-    "url": "https://github.com/jawkjiang/cc-feishu/issues"
+    "url": "https://github.com/hyposomnia/cc-feishu-connector/issues"
   },
-  "homepage": "https://github.com/jawkjiang/cc-feishu#readme",
+  "homepage": "https://github.com/hyposomnia/cc-feishu-connector#readme",
   "engines": {
     "node": ">=18.0.0"
   },
