@@ -23,10 +23,12 @@ export class WorkspaceStore {
   }
 
   list(): Array<{ alias: string; path: string }> {
+    this.load();
     return Object.entries(this.aliases).map(([alias, path]) => ({ alias, path }));
   }
 
   resolve(aliasOrPath: string): string {
+    this.load();
     return this.aliases[aliasOrPath] ?? aliasOrPath;
   }
 
