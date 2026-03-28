@@ -3,6 +3,7 @@ import { FeishuGateway } from "./gateway/feishu.js";
 import { CallbackRouter } from "./gateway/callback.js";
 import { SessionManager } from "./session/manager.js";
 import { CommandRouter } from "./commands/router.js";
+import { WorkspaceStore } from "./workspace/store.js";
 
 async function main() {
   const configPath = process.argv[2];
@@ -11,12 +12,14 @@ async function main() {
   const callbackRouter = new CallbackRouter();
   const gateway = new FeishuGateway(config.feishu, callbackRouter);
   const sessionManager = new SessionManager(config, gateway, callbackRouter);
+  const workspaceStore = new WorkspaceStore();
   const commandRouter = new CommandRouter(
     sessionManager,
     gateway,
     config,
     sessionManager.getSessionStore(),
     configPath,
+    workspaceStore,
   );
 
   gateway.onMessage(async (msg) => {
