@@ -12,12 +12,14 @@ import type { AppConfig } from "../config.js";
 import { SessionPicker } from "./session-picker.js";
 import type { SessionStore } from "../session/store.js";
 import type { CallbackRouter } from "../gateway/callback.js";
+import type { WorkspaceStore } from "../workspace/store.js";
 
 export class CommandRouter {
   private sessionManager: SessionManager;
   private gateway: FeishuGateway;
   private configCommand: ConfigCommand;
   private sessionPicker: SessionPicker;
+  private workspaceStore?: WorkspaceStore;
 
   constructor(
     sessionManager: SessionManager,
@@ -25,11 +27,13 @@ export class CommandRouter {
     config: AppConfig,
     sessionStore: SessionStore,
     configPath?: string,
+    workspaceStore?: WorkspaceStore,
   ) {
     this.sessionManager = sessionManager;
     this.gateway = gateway;
     this.configCommand = new ConfigCommand(gateway, config, configPath);
     this.sessionPicker = new SessionPicker(gateway, sessionStore);
+    this.workspaceStore = workspaceStore;
   }
 
   /**
@@ -63,6 +67,11 @@ export class CommandRouter {
         return this.handleStatus(msg);
       case "config":
         return this.handleConfig(msg, args);
+      case "run":
+        return this.handleStart(msg, args);
+      case "workspace":
+      case "ws":
+        return this.handleWorkspace(msg, args);
       case "help":
         return this.handleHelp(msg);
       default:
@@ -81,7 +90,7 @@ export class CommandRouter {
     }
 
     // First non-flag arg is the path
-    const cwd = args[0];
+    const cwd = this.workspaceStore ? this.workspaceStore.resolve(args[0]) : args[0];
     let extraArgs = args.slice(1);
 
     // Validate path exists
@@ -177,6 +186,54 @@ export class CommandRouter {
     return true;
   }
 
+  private async handleWorkspace(msg: IncomingMessage, args: string[]): Promise<boolean> {
+    if (!this.workspaceStore) {
+      await this.gateway.sendText(msg.chatId, "Workspace store not initialized.");
+      return true;
+    }
+
+    const subCmd = args[0]?.toLowerCase();
+
+    if (subCmd === "add" && args.length >= 3) {
+      const alias = args[1];
+      const path = args[2];
+      if (!existsSync(path)) {
+        await this.gateway.sendText(msg.chatId, `Path not found: \`${path}\``);
+        return true;
+      }
+      this.workspaceStore.add(alias, path);
+      await this.gateway.sendText(msg.chatId, `Workspace alias added: \`${alias}\` → \`${path}\``);
+      return true;
+    }
+
+    if (subCmd === "delete" && args.length >= 2) {
+      const alias = args[1];
+      const deleted = this.workspaceStore.delete(alias);
+      await this.gateway.sendText(
+        msg.chatId,
+        deleted ? `Workspace alias deleted: \`${alias}\`` : `Alias not found: \`${alias}\``,
+      );
+      return true;
+    }
+
+    if (subCmd === "list") {
+      const list = this.workspaceStore.list();
+      if (list.length === 0) {
+        await this.gateway.sendText(msg.chatId, "No workspace aliases configured.");
+      } else {
+        const lines = list.map(({ alias, path }) => `\`${alias}\` → \`${path}\``);
+        await this.gateway.sendText(msg.chatId, `**Workspace aliases:**\n${lines.join("\n")}`);
+      }
+      return true;
+    }
+
+    await this.gateway.sendText(
+      msg.chatId,
+      "Usage:\n`/workspace add <alias> <path>` — Add alias\n`/workspace delete <alias>` — Remove alias\n`/workspace list` — List all aliases\n\nShortcut: `/ws` works the same as `/workspace`",
+    );
+    return true;
+  }
+
   private async handleHelp(msg: IncomingMessage): Promise<boolean> {
     await this.gateway.sendText(
       msg.chatId,
@@ -188,6 +245,10 @@ export class CommandRouter {
         "`/esc` or `/interrupt` — Interrupt current execution (like Ctrl+C)",
         "`/status` — Show session info",
         "`/config` — View/edit configuration",
+        "`/run <alias>` — Start Claude Code using workspace alias",
+        "`/workspace add <alias> <path>` — Add workspace alias",
+        "`/workspace list` — List workspace aliases",
+        "`/ws` — Shortcut for /workspace",
         "`/help` — Show this message",
         "",
         "**Supported flags** (passed to `claude` CLI):",
