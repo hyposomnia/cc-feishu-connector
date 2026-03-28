@@ -23,3 +23,6 @@ config.toml
 # Test files
 test-*.txt
 demo-*.txt
+
+# Worktrees
+.worktrees/
