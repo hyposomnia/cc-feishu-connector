@@ -101,6 +101,22 @@ export class FeishuGateway {
     return resp.data?.message_id;
   }
 
+  /** 给消息添加表情反应，返回 reactionId */
+  async addReaction(messageId: string, emojiType: string): Promise<string | undefined> {
+    const res = await (this.client.im.v1.messageReaction as any).create({
+      path: { message_id: messageId },
+      data: { emoji_type: { emoji_type: emojiType } },
+    }).catch((err: any) => { console.error("[gateway] addReaction failed:", err); return null; });
+    return (res as any)?.data?.reaction_id;
+  }
+
+  /** 移除表情反应 */
+  async removeReaction(messageId: string, reactionId: string): Promise<void> {
+    await (this.client.im.v1.messageReaction as any).delete({
+      path: { message_id: messageId, reaction_id: reactionId },
+    }).catch((err: any) => { console.error("[gateway] removeReaction failed:", err); });
+  }
+
   /** Get the raw SDK client for advanced operations. */
   getClient(): Client {
     return this.client;

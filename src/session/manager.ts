@@ -68,7 +68,7 @@ export class Session {
 
     this.queue = new MessageQueue();
     this.queue.onProcess(async (item) => {
-      await this.processMessage(item.text, item.chatId);
+      await this.processMessage(item.text, item.chatId, item.messageId);
     });
 
     this.setupAgent();
@@ -153,9 +153,15 @@ export class Session {
     return `cwd: \`${this.startOpts.cwd}\`${flags}`;
   }
 
-  private async processMessage(text: string, chatId: string): Promise<void> {
+  private async processMessage(text: string, chatId: string, messageId?: string): Promise<void> {
     if (!this.agent.alive) {
       this.agent.start();
+    }
+
+    // 立即添加处理中表情
+    let reactionId: string | undefined;
+    if (messageId) {
+      reactionId = await this.gateway.addReaction(messageId, "OneSecond");
     }
 
     // Create a new streaming card for this turn
@@ -183,9 +189,14 @@ export class Session {
     });
 
     // Save the last card state
-    const messageId = this.currentCard.getMessageId();
-    if (messageId) {
-      this.sessionStore.saveLastCard(this.startOpts.cwd, messageId, chatId);
+    const cardMessageId = this.currentCard.getMessageId();
+    if (cardMessageId) {
+      this.sessionStore.saveLastCard(this.startOpts.cwd, cardMessageId, chatId);
+    }
+
+    // 处理完毕后移除表情
+    if (messageId && reactionId) {
+      await this.gateway.removeReaction(messageId, reactionId);
     }
 
     this.currentCard = undefined;
