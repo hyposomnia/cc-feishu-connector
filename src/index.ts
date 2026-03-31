@@ -58,7 +58,7 @@ async function main() {
   process.on("SIGTERM", shutdown);
 
   await gateway.start();
-  console.log("[cc-feishu] Service started, waiting for messages...");
+  console.log("[ccfc] Service started, waiting for messages...");
 }
 
 export { main };
@@ -66,7 +66,7 @@ export { main };
 // Only run if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
-    console.error("[cc-feishu] Fatal:", err);
+    console.error("[ccfc] Fatal:", err);
     process.exit(1);
   });
 }

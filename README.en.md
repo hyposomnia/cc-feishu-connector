@@ -76,7 +76,7 @@ Go to **Version Management & Release**, create a version, and publish. Internal 
 npm install -g @hyposomnia/cc-feishu-connector
 ```
 
-The `cc-feishu` command is then available globally.
+The `ccfc` command is then available globally.
 
 ### Option B: Build from source
 
@@ -85,7 +85,7 @@ git clone https://github.com/hyposomnia/cc-feishu-connector.git
 cd cc-feishu-connector
 npm install
 npm run build
-npm link   # link cc-feishu to the global PATH
+npm link   # link ccfc to the global PATH
 ```
 
 ---
@@ -94,26 +94,39 @@ npm link   # link cc-feishu to the global PATH
 
 ```bash
 # Set your Feishu App ID and App Secret
-cc-feishu config set feishu.app_id cli_xxxxxxxxxxxxxxxx
-cc-feishu config set feishu.app_secret xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ccfc config set feishu.app_id cli_xxxxxxxxxxxxxxxx
+ccfc config set feishu.app_secret xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Optional: set a default model
-cc-feishu config set defaults.model claude-opus-4-6
+ccfc config set defaults.model claude-opus-4-6
 
 # Verify config
-cc-feishu config show
+ccfc config show
 ```
 
 Config is saved to `~/.cc-feishu-connector/config.toml`. You can also edit it directly:
 
 ```toml
+# ~/.cc-feishu-connector/config.toml
+
 [feishu]
+# Required: Feishu app credentials (from "Credentials & Basic Info" on the Open Platform)
 app_id = "cli_xxxxxxxxxxxxxxxx"
 app_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [defaults]
-model = "claude-sonnet-4-6"   # optional
+# Optional: default Claude model; leave blank to use the claude CLI default
+# Examples: claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5
+model = "claude-sonnet-4-6"
 ```
+
+All config options:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `feishu.app_id` | ✅ | Feishu App ID (starts with `cli_`) |
+| `feishu.app_secret` | ✅ | Feishu App Secret |
+| `defaults.model` | ❌ | Default Claude model; overridable per-session with `/start --model` |
 
 ---
 
@@ -121,13 +134,13 @@ model = "claude-sonnet-4-6"   # optional
 
 ```bash
 # Run in foreground (with live logs)
-cc-feishu start
+ccfc start
 
 # Install as a macOS system service (auto-start on login)
-cc-feishu service install
-cc-feishu service status
-cc-feishu service restart
-cc-feishu service uninstall
+ccfc service install
+ccfc service status
+ccfc service restart
+ccfc service uninstall
 ```
 
 When the log shows `ws client ready`, the service is connected to Feishu.

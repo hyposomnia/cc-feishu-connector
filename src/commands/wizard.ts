@@ -23,12 +23,12 @@ export async function runConfigWizard(configPath?: string): Promise<void> {
 
   console.log("\n╔════════════════════════════════════════════════════════════╗");
   console.log("║                                                            ║");
-  console.log("║          🚀 cc-feishu 配置向导                             ║");
+  console.log("║          🚀 ccfc 配置向导                             ║");
   console.log("║          Claude Code 飞书桥接服务                          ║");
   console.log("║                                                            ║");
   console.log("╚════════════════════════════════════════════════════════════╝\n");
 
-  console.log("欢迎使用 cc-feishu！让我们一起完成配置。\n");
+  console.log("欢迎使用 ccfc！让我们一起完成配置。\n");
 
   // Load existing config if available
   let config: Config = { feishu: {}, defaults: {} };
@@ -155,12 +155,12 @@ export async function runConfigWizard(configPath?: string): Promise<void> {
   console.log("   • 添加权限：im:message, im:message:send_as_bot\n");
 
   console.log("2️⃣  启动服务：");
-  console.log("   cc-feishu start\n");
+  console.log("   ccfc start\n");
 
   console.log("3️⃣  在飞书中与机器人对话：");
   console.log("   /start /path/to/your/project\n");
 
-  console.log("需要帮助？运行：cc-feishu help\n");
+  console.log("需要帮助？运行：ccfc help\n");
 
   rl.close();
 }

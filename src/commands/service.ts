@@ -54,7 +54,7 @@ function getPlistContent(projectDir: string, configPath: string, nodePath: strin
 }
 
 export function installService(projectDir: string, configPath: string): void {
-  console.log("🚀 安装 cc-feishu 服务...");
+  console.log("🚀 安装 ccfc 服务...");
 
   // Get Node.js path
   const nodePath = execSync("which node", { encoding: "utf-8" }).trim();
@@ -88,7 +88,7 @@ export function installService(projectDir: string, configPath: string): void {
   console.log("⚡ 服务已加载并启动");
 
   console.log("");
-  console.log("✅ cc-feishu 服务安装成功！");
+  console.log("✅ ccfc 服务安装成功！");
   console.log("");
   console.log("常用命令:");
   console.log(`  查看状态: launchctl list | grep cc-feishu`);
@@ -99,7 +99,7 @@ export function installService(projectDir: string, configPath: string): void {
 }
 
 export function uninstallService(): void {
-  console.log("🛑 卸载 cc-feishu 服务...");
+  console.log("🛑 卸载 ccfc 服务...");
 
   if (!existsSync(DEST_PLIST)) {
     console.log("⚠️  服务未安装");
@@ -119,7 +119,7 @@ export function uninstallService(): void {
   console.log("📋 服务配置已删除");
 
   console.log("");
-  console.log("✅ cc-feishu 服务已卸载");
+  console.log("✅ ccfc 服务已卸载");
 }
 
 export function getServiceStatus(): void {
@@ -139,13 +139,13 @@ export function getServiceStatus(): void {
       console.log(`启动服务: launchctl load "${DEST_PLIST}"`);
     } else {
       console.log("服务未安装");
-      console.log("安装服务: cc-feishu service install");
+      console.log("安装服务: ccfc service install");
     }
   }
 }
 
 export function restartService(): void {
-  console.log("🔄 重启 cc-feishu 服务...");
+  console.log("🔄 重启 ccfc 服务...");
 
   if (!existsSync(DEST_PLIST)) {
     console.log("⚠️  服务未安装");
@@ -165,5 +165,5 @@ export function restartService(): void {
   console.log("⚡ 服务已启动");
 
   console.log("");
-  console.log("✅ cc-feishu 服务已重启");
+  console.log("✅ ccfc 服务已重启");
 }

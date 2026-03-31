@@ -1,17 +1,18 @@
 /**
  * cc-feishu CLI tool
  * Usage:
- *   cc-feishu config show
- *   cc-feishu config get <key>
- *   cc-feishu config set <key> <value>
- *   cc-feishu start [config-path]
- *   cc-feishu service install
- *   cc-feishu service uninstall
- *   cc-feishu service status
- *   cc-feishu service restart
+ *   ccfc config show
+ *   ccfc config get <key>
+ *   ccfc config set <key> <value>
+ *   ccfc start [config-path]
+ *   ccfc service install
+ *   ccfc service uninstall
+ *   ccfc service status
+ *   ccfc service restart
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import TOML from "@iarna/toml";
 import { runConfigWizard } from "./commands/wizard.js";
@@ -20,7 +21,7 @@ import { installService, uninstallService, getServiceStatus, restartService } fr
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_DIR = resolve(__dirname, "..");
-const DEFAULT_CONFIG_PATH = resolve(PROJECT_DIR, "config.toml");
+const DEFAULT_CONFIG_PATH = resolve(homedir(), ".cc-feishu-connector", "config.toml");
 
 interface Config {
   feishu?: {
@@ -108,18 +109,18 @@ function setConfigValue(configPath: string, key: string, value: string): void {
 }
 
 function showHelp(): void {
-  console.log(`cc-feishu - Claude Code Feishu bridge service
+  console.log(`ccfc - Claude Code Feishu bridge service
 
 Usage:
-  cc-feishu setup [config-path]           交互式配置向导（推荐）
-  cc-feishu start [config-path]           Start the service
-  cc-feishu config show [config-path]     Show current configuration
-  cc-feishu config get <key> [config-path] Get a config value
-  cc-feishu config set <key> <value> [config-path] Set a config value
-  cc-feishu service install [config-path] Install as system service (auto-start)
-  cc-feishu service uninstall             Uninstall system service
-  cc-feishu service status                Show service status
-  cc-feishu service restart               Restart system service
+  ccfc setup [config-path]           交互式配置向导（推荐）
+  ccfc start [config-path]           Start the service
+  ccfc config show [config-path]     Show current configuration
+  ccfc config get <key> [config-path] Get a config value
+  ccfc config set <key> <value> [config-path] Set a config value
+  ccfc service install [config-path] Install as system service (auto-start)
+  ccfc service uninstall             Uninstall system service
+  ccfc service status                Show service status
+  ccfc service restart               Restart system service
 
 Config keys:
   feishu.app_id         Feishu app ID
@@ -127,16 +128,16 @@ Config keys:
   defaults.model        Default Claude model
 
 Examples:
-  cc-feishu setup                         # 交互式配置（推荐新手使用）
-  cc-feishu config show
-  cc-feishu config set feishu.app_id cli_xxx
-  cc-feishu config set feishu.app_secret your_secret
-  cc-feishu config set defaults.model claude-opus-4-6
-  cc-feishu config get feishu.app_id
-  cc-feishu start
-  cc-feishu start /path/to/config.toml
-  cc-feishu service install               # 安装为系统服务
-  cc-feishu service status                # 查看服务状态
+  ccfc setup                         # 交互式配置（推荐新手使用）
+  ccfc config show
+  ccfc config set feishu.app_id cli_xxx
+  ccfc config set feishu.app_secret your_secret
+  ccfc config set defaults.model claude-opus-4-6
+  ccfc config get feishu.app_id
+  ccfc start
+  ccfc start /path/to/config.toml
+  ccfc service install               # 安装为系统服务
+  ccfc service status                # 查看服务状态
 `);
 }
 
@@ -188,7 +189,7 @@ async function main() {
     if (subCommand === "get") {
       const key = args[2];
       if (!key) {
-        console.error("Missing key. Usage: cc-feishu config get <key>");
+        console.error("Missing key. Usage: ccfc config get <key>");
         process.exit(1);
       }
       const configPath = args[3] ?? DEFAULT_CONFIG_PATH;
@@ -200,7 +201,7 @@ async function main() {
       const key = args[2];
       const value = args[3];
       if (!key || !value) {
-        console.error("Missing key or value. Usage: cc-feishu config set <key> <value>");
+        console.error("Missing key or value. Usage: ccfc config set <key> <value>");
         process.exit(1);
       }
       const configPath = args[4] ?? DEFAULT_CONFIG_PATH;
@@ -245,7 +246,7 @@ async function main() {
   }
 
   console.error(`Unknown command: ${command}`);
-  console.error("Run 'cc-feishu help' for usage information");
+  console.error("Run 'ccfc help' for usage information");
   process.exit(1);
 }
 
