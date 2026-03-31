@@ -1,6 +1,6 @@
 {
   "name": "@hyposomnia/cc-feishu-connector",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Claude Code Feishu bridge - Connect Claude Code with Feishu bot for seamless AI-powered development workflow",
   "type": "module",
   "main": "dist/index.js",
