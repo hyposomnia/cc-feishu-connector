@@ -21,7 +21,7 @@ function assertMacOS() {
 }
 
 function getPlistContent(projectDir: string, configPath: string, nodePath: string): string {
-  const cliPath = resolve(projectDir, "dist", "cli.js");
+  const indexPath = resolve(projectDir, "dist", "index.js");
   const logsDir = resolve(projectDir, "logs");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -34,8 +34,7 @@ function getPlistContent(projectDir: string, configPath: string, nodePath: strin
     <key>ProgramArguments</key>
     <array>
         <string>${nodePath}</string>
-        <string>${cliPath}</string>
-        <string>start</string>
+        <string>${indexPath}</string>
         <string>${configPath}</string>
     </array>
 
