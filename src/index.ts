@@ -4,8 +4,32 @@ import { CallbackRouter } from "./gateway/callback.js";
 import { SessionManager } from "./session/manager.js";
 import { CommandRouter } from "./commands/router.js";
 import { WorkspaceStore } from "./workspace/store.js";
+import { execFileSync } from "node:child_process";
+
+/**
+ * Expand PATH using the user's login shell so that tools like `claude`
+ * installed via npm/homebrew/etc. are discoverable even when started
+ * from launchd (which provides a minimal PATH).
+ */
+function expandPathFromLoginShell(): void {
+  try {
+    const shell = process.env.SHELL ?? "/bin/zsh";
+    const loginPath = execFileSync(shell, ["-lc", "echo $PATH"], {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (loginPath) {
+      process.env.PATH = loginPath;
+    }
+  } catch {
+    // Non-fatal: fall back to existing PATH
+  }
+}
 
 async function main() {
+  expandPathFromLoginShell();
+
   const configPath = process.argv[2];
   const config = loadConfig(configPath);
 
