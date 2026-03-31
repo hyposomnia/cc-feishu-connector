@@ -20,9 +20,11 @@ function assertMacOS() {
   }
 }
 
-function getPlistContent(projectDir: string, configPath: string, nodePath: string): string {
+function getPlistContent(projectDir: string, configPath: string, nodePath: string, claudePath: string): string {
   const indexPath = resolve(projectDir, "dist", "index.js");
   const logsDir = resolve(projectDir, "logs");
+  const claudeDir = dirname(claudePath);
+  const nodedir = dirname(nodePath);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -56,7 +58,7 @@ function getPlistContent(projectDir: string, configPath: string, nodePath: strin
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>${claudeDir}:${nodedir}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 </dict>
 </plist>`;
@@ -70,6 +72,15 @@ export function installService(projectDir: string, configPath: string): void {
   const nodePath = execSync("which node", { encoding: "utf-8" }).trim();
   console.log(`📍 Node.js 路径: ${nodePath}`);
 
+  // Get claude path
+  let claudePath: string;
+  try {
+    claudePath = execSync("which claude", { encoding: "utf-8" }).trim();
+  } catch {
+    claudePath = execSync("command -v claude", { encoding: "utf-8", shell: "/bin/zsh" }).trim();
+  }
+  console.log(`📍 claude 路径: ${claudePath}`);
+
   // Create LaunchAgents directory if not exists
   if (!existsSync(LAUNCH_AGENTS_DIR)) {
     mkdirSync(LAUNCH_AGENTS_DIR, { recursive: true });
@@ -82,7 +93,7 @@ export function installService(projectDir: string, configPath: string): void {
   }
 
   // Generate and write plist file
-  const plistContent = getPlistContent(projectDir, configPath, nodePath);
+  const plistContent = getPlistContent(projectDir, configPath, nodePath, claudePath);
   writeFileSync(DEST_PLIST, plistContent, "utf-8");
   console.log(`📋 服务配置已写入: ${DEST_PLIST}`);
 
