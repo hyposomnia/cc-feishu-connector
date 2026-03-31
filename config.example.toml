@@ -4,3 +4,6 @@ app_secret = "xxx"
 
 [defaults]
 # model = "claude-sonnet-4-6"
+
+[proxy]
+# url = "http://127.0.0.1:7890"

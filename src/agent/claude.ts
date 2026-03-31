@@ -10,6 +10,8 @@ export interface ClaudeAgentOptions {
   extraArgs?: string[];
   /** Path to claude binary. Default: "claude". */
   claudeBin?: string;
+  /** Proxy URL (e.g. "http://127.0.0.1:7890"). If set, injected as HTTP_PROXY/HTTPS_PROXY. */
+  proxyUrl?: string;
 }
 
 export class ClaudeAgent extends EventEmitter {
@@ -18,6 +20,7 @@ export class ClaudeAgent extends EventEmitter {
   private cwd: string;
   private extraArgs: string[];
   private claudeBin: string;
+  private proxyUrl?: string;
   private _busy = false;
 
   constructor(opts: ClaudeAgentOptions) {
@@ -25,6 +28,7 @@ export class ClaudeAgent extends EventEmitter {
     this.cwd = opts.cwd;
     this.extraArgs = opts.extraArgs ?? [];
     this.claudeBin = opts.claudeBin ?? "claude";
+    this.proxyUrl = opts.proxyUrl;
   }
 
   get busy(): boolean {
@@ -61,6 +65,14 @@ export class ClaudeAgent extends EventEmitter {
     // Create clean environment without CLAUDECODE to avoid nested session detection
     const env = { ...process.env };
     delete env.CLAUDECODE;
+
+    // Apply proxy if configured
+    if (this.proxyUrl) {
+      env.HTTP_PROXY = this.proxyUrl;
+      env.HTTPS_PROXY = this.proxyUrl;
+      env.http_proxy = this.proxyUrl;
+      env.https_proxy = this.proxyUrl;
+    }
 
     this.proc = spawn(this.claudeBin, args, {
       stdio: ["pipe", "pipe", "pipe"],

@@ -17,6 +17,7 @@ import type { WorkspaceStore } from "../workspace/store.js";
 export class CommandRouter {
   private sessionManager: SessionManager;
   private gateway: FeishuGateway;
+  private config: AppConfig;
   private configCommand: ConfigCommand;
   private sessionPicker: SessionPicker;
   private workspaceStore?: WorkspaceStore;
@@ -31,6 +32,7 @@ export class CommandRouter {
   ) {
     this.sessionManager = sessionManager;
     this.gateway = gateway;
+    this.config = config;
     this.configCommand = new ConfigCommand(gateway, config, configPath);
     this.sessionPicker = new SessionPicker(gateway, sessionStore);
     this.workspaceStore = workspaceStore;
@@ -114,6 +116,7 @@ export class CommandRouter {
       const session = this.sessionManager.startSession(msg.senderId, msg.chatId, {
         cwd,
         extraArgs,
+        proxyUrl: this.config.proxy?.url,
       });
       const flagsDesc = extraArgs.length ? `\nFlags: \`${extraArgs.join(" ")}\`` : "";
       await this.gateway.sendText(

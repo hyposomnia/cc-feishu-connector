@@ -11,9 +11,14 @@ export interface DefaultsConfig {
   model?: string;
 }
 
+export interface ProxyConfig {
+  url?: string;
+}
+
 export interface AppConfig {
   feishu: FeishuConfig;
   defaults: DefaultsConfig;
+  proxy?: ProxyConfig;
 }
 
 export function loadConfig(configPath?: string): AppConfig {

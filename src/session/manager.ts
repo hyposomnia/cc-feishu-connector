@@ -21,6 +21,8 @@ export interface StartOptions {
   cwd: string;
   /** Extra CLI flags passed through to claude. */
   extraArgs: string[];
+  /** Proxy URL forwarded to the claude subprocess as HTTP_PROXY/HTTPS_PROXY. */
+  proxyUrl?: string;
 }
 
 export class Session {
@@ -64,6 +66,7 @@ export class Session {
     this.agent = new ClaudeAgent({
       cwd: startOpts.cwd,
       extraArgs: startOpts.extraArgs,
+      proxyUrl: startOpts.proxyUrl,
     });
 
     this.queue = new MessageQueue();
