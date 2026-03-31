@@ -143,6 +143,10 @@ ccfc service restart
 ccfc service uninstall
 ```
 
+> **Note**: `ccfc service *` commands are macOS only.
+> On Windows, run `ccfc start` in the foreground, or use
+> [NSSM](https://nssm.cc) or Task Scheduler to register it as a background service.
+
 When the log shows `ws client ready`, the service is connected to Feishu.
 
 ---

@@ -10,6 +10,16 @@ const PLIST_NAME = "com.cc-feishu.service.plist";
 const LAUNCH_AGENTS_DIR = resolve(homedir(), "Library", "LaunchAgents");
 const DEST_PLIST = resolve(LAUNCH_AGENTS_DIR, PLIST_NAME);
 
+function assertMacOS() {
+  if (process.platform !== "darwin") {
+    const hint = process.platform === "win32"
+      ? "Windows 上请使用任务计划程序或 NSSM 将 `ccfc start` 注册为服务。"
+      : "当前系统不支持此命令，请手动将 `ccfc start` 注册为系统服务。";
+    console.error(`错误：系统服务管理仅支持 macOS。\n${hint}`);
+    process.exit(1);
+  }
+}
+
 function getPlistContent(projectDir: string, configPath: string, nodePath: string): string {
   const cliPath = resolve(projectDir, "dist", "cli.js");
   const logsDir = resolve(projectDir, "logs");
@@ -54,6 +64,7 @@ function getPlistContent(projectDir: string, configPath: string, nodePath: strin
 }
 
 export function installService(projectDir: string, configPath: string): void {
+  assertMacOS();
   console.log("🚀 安装 ccfc 服务...");
 
   // Get Node.js path
@@ -99,6 +110,7 @@ export function installService(projectDir: string, configPath: string): void {
 }
 
 export function uninstallService(): void {
+  assertMacOS();
   console.log("🛑 卸载 ccfc 服务...");
 
   if (!existsSync(DEST_PLIST)) {
@@ -123,6 +135,7 @@ export function uninstallService(): void {
 }
 
 export function getServiceStatus(): void {
+  assertMacOS();
   try {
     const output = execSync("launchctl list | grep cc-feishu", { encoding: "utf-8" });
     console.log("服务状态:");
@@ -145,6 +158,7 @@ export function getServiceStatus(): void {
 }
 
 export function restartService(): void {
+  assertMacOS();
   console.log("🔄 重启 ccfc 服务...");
 
   if (!existsSync(DEST_PLIST)) {

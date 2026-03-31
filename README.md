@@ -143,6 +143,10 @@ ccfc service restart
 ccfc service uninstall
 ```
 
+> **注意**：`ccfc service *` 系统服务管理仅支持 macOS。
+> Windows 用户请使用 `ccfc start` 前台运行，或通过
+> [NSSM](https://nssm.cc) / 任务计划程序注册为后台服务。
+
 启动后日志显示 `ws client ready` 表示已连接飞书。
 
 ---
