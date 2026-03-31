@@ -118,6 +118,10 @@ app_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # Optional: default Claude model; leave blank to use the claude CLI default
 # Examples: claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5
 model = "claude-sonnet-4-6"
+
+[proxy]
+# Optional: HTTP proxy URL for the claude subprocess
+# url = "http://127.0.0.1:7890"
 ```
 
 All config options:
@@ -127,6 +131,7 @@ All config options:
 | `feishu.app_id` | ✅ | Feishu App ID (starts with `cli_`) |
 | `feishu.app_secret` | ✅ | Feishu App Secret |
 | `defaults.model` | ❌ | Default Claude model; overridable per-session with `/start --model` |
+| `proxy.url` | ❌ | HTTP proxy URL, injected as `HTTPS_PROXY` into the claude subprocess |
 
 ---
 

@@ -118,6 +118,10 @@ app_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # 可选：默认使用的 Claude 模型，留空则使用 claude 命令的默认模型
 # 可选值示例：claude-opus-4-6、claude-sonnet-4-6、claude-haiku-4-5
 model = "claude-sonnet-4-6"
+
+[proxy]
+# 可选：HTTP 代理地址，设置后会通过代理访问 Claude API
+# url = "http://127.0.0.1:7890"
 ```
 
 所有配置项说明：
@@ -127,6 +131,7 @@ model = "claude-sonnet-4-6"
 | `feishu.app_id` | ✅ | 飞书应用 App ID，格式为 `cli_` 开头 |
 | `feishu.app_secret` | ✅ | 飞书应用 App Secret |
 | `defaults.model` | ❌ | 默认 Claude 模型，可被 `/start --model` 参数覆盖 |
+| `proxy.url` | ❌ | HTTP 代理地址，注入为 claude 子进程的 `HTTPS_PROXY` |
 
 ---
 
