@@ -196,14 +196,11 @@ Claude 的响应以交互式卡片展示：
 
 Claude 执行敏感操作时弹出审批卡片：
 
-```
-🔐 Permission Required
-Tool: Bash
-Action: Run a shell command
-$ rm -rf dist/
+![权限审批卡片](./docs/wait_approval.png)
 
-[ ✅ 允许 ]  [ ❌ 拒绝 ]  [ ✅ 全部允许 ]
-```
+点击按钮后卡片更新为已响应状态：
+
+![已响应](./docs/approval.png)
 
 点击按钮即可批准或拒绝，"全部允许"会跳过本次会话后续所有权限确认。
 

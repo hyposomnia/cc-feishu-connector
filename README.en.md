@@ -196,14 +196,11 @@ Responses are displayed as interactive cards:
 
 When Claude needs to perform a sensitive action, a card appears:
 
-```
-🔐 Permission Required
-Tool: Bash
-Action: Run a shell command
-$ rm -rf dist/
+![Permission approval card](./docs/wait_approval.png)
 
-[ ✅ Allow ]  [ ❌ Deny ]  [ ✅ Allow All ]
-```
+After clicking a button, the card updates to show the response:
+
+![Responded](./docs/approval.png)
 
 Click a button to respond. **Allow All** skips all further permission prompts for the current session.
 
