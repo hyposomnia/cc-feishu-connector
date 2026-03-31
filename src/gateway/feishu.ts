@@ -50,9 +50,73 @@ export class FeishuGateway {
 
   /** Start the WebSocket connection. */
   async start(): Promise<void> {
+    this.patchWSClientCardHandler();
     await this.wsClient.start({
       eventDispatcher: this.dispatcher,
     });
+  }
+
+  /**
+   * Monkey-patch WSClient to handle `type: "card"` messages.
+   *
+   * The SDK's handleEventData() silently drops card messages (type !== "event"),
+   * so card action callbacks are never dispatched. We intercept them here,
+   * parse the payload, dispatch to callbackRouter, and send an ACK.
+   */
+  private patchWSClientCardHandler(): void {
+    const ws = this.wsClient as unknown as Record<string, unknown>;
+    const original = (ws.handleEventData as Function).bind(this.wsClient);
+
+    ws.handleEventData = async (data: {
+      headers: Array<{ key: string; value: string }>;
+      payload: Uint8Array;
+      [k: string]: unknown;
+    }) => {
+      const typeHeader = data.headers.find((h) => h.key === "type");
+      if (typeHeader?.value !== "card") {
+        return original(data);
+      }
+
+      // Card action callback (type:"card" frame).
+      // The SDK silently drops these frames, so we handle them here.
+      const startTime = Date.now();
+
+      try {
+        const rawPayload = new TextDecoder("utf-8").decode(data.payload);
+        const cardData = JSON.parse(rawPayload);
+        console.log("[feishu] type:card payload:", JSON.stringify(cardData));
+
+        if (this.callbackRouter && cardData.action) {
+          const openId = cardData.operator?.open_id ?? cardData.open_id ?? "";
+          const messageId = cardData.open_message_id ?? "";
+
+          const updatedCard = await this.callbackRouter.dispatch({
+            openId,
+            messageId,
+            actionValue: cardData.action.value ?? {},
+            actionTag: cardData.action.tag ?? "",
+          });
+
+          if (updatedCard && messageId) {
+            this.updateCard(messageId, updatedCard).catch((err) => {
+              console.error("[feishu] updateCard failed (card frame):", err?.message);
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[feishu] card frame handler error:", err);
+      }
+
+      // Send ACK back to Feishu
+      const endTime = Date.now();
+      const payloadStr = JSON.stringify({ code: 0 });
+      const sendMessage = (ws.sendMessage as Function).bind(this.wsClient);
+      sendMessage({
+        ...data,
+        headers: [...data.headers, { key: "biz_rt", value: String(endTime - startTime) }],
+        payload: new TextEncoder().encode(payloadStr),
+      });
+    };
   }
 
   /** Send a plain text message. */
@@ -180,31 +244,43 @@ export class FeishuGateway {
       },
     });
 
-    // Try multiple possible card action event names
-    const cardEventNames = [
-      "card.action.trigger",
-      "application.bot.menu_v6",
-      "card_action_trigger",
-      "interactive",
-    ];
-
-    for (const eventName of cardEventNames) {
-      this.dispatcher.register({
-        [eventName]: async (data) => {
-          console.log(`[feishu] Card event '${eventName}' received:`, JSON.stringify(data, null, 2));
-          if (!this.callbackRouter) return;
-
-          const { open_id, action } = data;
-          if (!action) return;
-
-          await this.callbackRouter.dispatch({
-            openId: open_id ?? "",
-            messageId: action.message_id ?? "",
+    // Register a no-op handler for card.action.trigger events.
+    // Feishu may send both a type:"card" frame (handled by patchWSClientCardHandler)
+    // and a type:"event" frame with card.action.trigger for the same button click.
+    // Without a registered handler, EventDispatcher returns the string
+    // "no card.action.trigger event handle" which gets base64-encoded into the ACK —
+    // registering a handler that returns undefined keeps the ACK clean.
+    this.dispatcher.register({
+      // card.action.trigger is the primary delivery path for button clicks in WebSocket mode.
+      // The SDK wraps any non-undefined return value as base64 in the ACK, which Feishu
+      // rejects with 200672. So we MUST return undefined to keep the ACK as { code: 200 }.
+      // Card update is done via REST API separately.
+      "card.action.trigger": async (data) => {
+        console.log("[feishu] card.action.trigger event:", JSON.stringify(data));
+        if (!this.callbackRouter) return undefined;
+        const action = (data as any).action;
+        // message ID is in context.open_message_id (NOT open_message_id at top level)
+        const messageId = (data as any).context?.open_message_id ?? "";
+        const openId = (data as any).operator?.open_id ?? (data as any).open_id ?? "";
+        if (!action) return undefined;
+        try {
+          const updatedCard = await this.callbackRouter.dispatch({
+            openId,
+            messageId,
             actionValue: action.value ?? {},
             actionTag: action.tag ?? "",
           });
-        },
-      });
-    }
+          // Update card via REST API (ACK must return undefined to avoid 200672)
+          if (updatedCard && messageId) {
+            this.updateCard(messageId, updatedCard).catch((err) => {
+              console.error("[feishu] updateCard failed (event):", err?.message);
+            });
+          }
+        } catch (err) {
+          console.error("[feishu] card.action.trigger error:", err);
+        }
+        return undefined; // Must be undefined — any object causes 200672
+      },
+    });
   }
 }

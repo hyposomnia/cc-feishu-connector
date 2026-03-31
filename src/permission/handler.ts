@@ -3,11 +3,12 @@
  * Intercepts permission_request events from Claude Code,
  * renders approval cards in Feishu, and sends responses back.
  */
-import type { PermissionRequestEvent } from "../agent/types.js";
+import type { PermissionRequestEvent, ControlRequestEvent } from "../agent/types.js";
 import type { FeishuGateway } from "../gateway/feishu.js";
 import type { CallbackRouter, CardAction } from "../gateway/callback.js";
 import type { ClaudeAgent } from "../agent/claude.js";
 import { createCard, md, hr, actions, button, type Card, type CardElement } from "../renderer/card-builder.js";
+
 
 export class PermissionHandler {
   private gateway: FeishuGateway;
@@ -28,6 +29,8 @@ export class PermissionHandler {
     agent: ClaudeAgent;
     messageId?: string;
     resolve: () => void;
+    isControl?: boolean; // true = control_request, false = permission_request
+    originalInput?: Record<string, unknown>; // for control_request: original tool input
   }>();
 
   /**
@@ -47,41 +50,65 @@ export class PermissionHandler {
           agent,
           messageId,
           resolve,
+          isControl: false,
         });
       });
     });
   }
 
-  private async handleResponse(action: CardAction): Promise<void> {
+  /**
+   * Handle a control_request event (newer permission mechanism).
+   * Sends an approval card to Feishu and waits for user response.
+   */
+  async requestControl(
+    event: ControlRequestEvent,
+    agent: ClaudeAgent,
+    chatId: string,
+  ): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const card = this.buildControlCard(event);
+      this.gateway.sendCard(chatId, card).then((messageId) => {
+        this.pending.set(event.request_id, {
+          agent,
+          messageId,
+          resolve,
+          isControl: true,
+          originalInput: event.request.input,
+        });
+      });
+    });
+  }
+
+  private async handleResponse(action: CardAction): Promise<object | undefined> {
     const requestId = action.actionValue.request_id as string;
-    const response = action.actionValue.permission_allow
+    const response = action.actionValue.permission_allow === "true"
       ? "allow"
-      : action.actionValue.permission_deny
+      : action.actionValue.permission_deny === "true"
         ? "deny"
-        : action.actionValue.permission_allow_all
+        : action.actionValue.permission_allow_all === "true"
           ? "allow_all"
           : null;
 
-    if (!requestId || !response) return;
+    if (!requestId || !response) return undefined;
 
     const pending = this.pending.get(requestId);
-    if (!pending) return;
+    if (!pending) return undefined; // stale card click, ignore silently
 
-    // Send the permission response to Claude Code
-    pending.agent.sendPermissionResponse(response as "allow" | "deny" | "allow_all");
+    // Remove from pending immediately to debounce double-clicks
+    this.pending.delete(requestId);
 
-    // Update the card to show the decision
-    if (pending.messageId) {
-      const resultCard = this.buildResolvedCard(response);
-      try {
-        await this.gateway.updateCard(pending.messageId, resultCard);
-      } catch {
-        // Ignore update failures
-      }
+    // Resume Claude
+    if (pending.isControl) {
+      const behavior = response === "deny" ? "deny" : "allow";
+      pending.agent.sendControlResponse(requestId, behavior, pending.originalInput);
+    } else {
+      pending.agent.sendPermissionResponse(response as "allow" | "deny" | "allow_all");
     }
 
-    this.pending.delete(requestId);
     pending.resolve();
+
+    // Return resolved card — caller wraps it in the proper callback response format
+    return this.buildResolvedCard(response);
   }
 
   private buildPermissionCard(event: PermissionRequestEvent): Card {
@@ -101,16 +128,16 @@ export class PermissionHandler {
     elements.push(
       actions(
         [
-          button("✅ Allow", {
-            permission_allow: true,
+          button("✅ 允许", {
+            permission_allow: "true",
             request_id: event.permission_request_id,
           }, "primary"),
-          button("❌ Deny", {
-            permission_deny: true,
+          button("❌ 拒绝", {
+            permission_deny: "true",
             request_id: event.permission_request_id,
           }, "danger"),
-          button("✅ Allow All", {
-            permission_allow_all: true,
+          button("✅ 全部允许", {
+            permission_allow_all: "true",
             request_id: event.permission_request_id,
           }, "default"),
         ],
@@ -124,18 +151,76 @@ export class PermissionHandler {
     );
   }
 
-  private buildResolvedCard(response: string): Card {
-    const label = {
-      allow: "✅ Allowed",
-      deny: "❌ Denied",
-      allow_all: "✅ Allowed All",
-    }[response] ?? response;
+  private buildControlCard(event: ControlRequestEvent): Card {
+    const req = event.request;
+    const elements: CardElement[] = [
+      md(`**Tool:** \`${req.tool_name}\``),
+    ];
 
+    if (req.description) {
+      elements.push(md(`**Action:** ${req.description}`));
+    }
+
+    // Show input details
+    if (req.tool_name === "Bash" && req.input.command) {
+      elements.push(md(`\`\`\`bash\n${String(req.input.command)}\n\`\`\``));
+    } else if (req.input.file_path) {
+      elements.push(md(`**File:** \`${req.input.file_path}\``));
+    }
+
+    if (req.decision_reason) {
+      elements.push(md(`**Reason:** ${req.decision_reason}`));
+    }
+
+    elements.push(hr());
+    elements.push(
+      actions(
+        [
+          button("✅ 允许", {
+            permission_allow: "true",
+            request_id: event.request_id,
+          }, "primary"),
+          button("❌ 拒绝", {
+            permission_deny: "true",
+            request_id: event.request_id,
+          }, "danger"),
+          button("✅ 全部允许", {
+            permission_allow_all: "true",
+            request_id: event.request_id,
+          }, "default"),
+        ],
+        "flow",
+      ),
+    );
+
+    const title = req.title ?? `🔐 Permission Required`;
+    return createCard(
+      { title, template: "orange" },
+      elements,
+    );
+  }
+
+  private buildResolvedCard(response: string): Card {
     const template = response === "deny" ? "red" : "green";
 
+    // Show all three options: clicked = bold+emoji, others = strikethrough (greyed)
+    const options: Array<{ key: string; label: string }> = [
+      { key: "allow", label: "允许" },
+      { key: "deny", label: "拒绝" },
+      { key: "allow_all", label: "全部允许" },
+    ];
+    const icons: Record<string, string> = { allow: "✅", deny: "❌", allow_all: "✅" };
+
+    const line = options.map(({ key, label }) => {
+      if (key === response) {
+        return `**${icons[key]} ${label}**`;
+      }
+      return `~~${label}~~`;
+    }).join("　｜　");
+
     return createCard(
-      { title: `🔐 ${label}`, template },
-      [md(`Permission response: **${label}**`)],
+      { title: "🔐 已响应", template },
+      [md(line)],
     );
   }
 }

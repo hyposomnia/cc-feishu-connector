@@ -11,7 +11,7 @@ export type CardAction = {
   actionTag: string;
 };
 
-export type CardActionCallback = (action: CardAction) => void | Promise<void>;
+export type CardActionCallback = (action: CardAction) => object | undefined | void | Promise<object | undefined | void>;
 
 export class CallbackRouter {
   private handlers = new Map<string, CardActionCallback>();
@@ -26,24 +26,19 @@ export class CallbackRouter {
     this.handlers.delete(actionKey);
   }
 
-  /** Dispatch a card action event. Called by the Feishu gateway. */
-  async dispatch(action: CardAction): Promise<void> {
-    console.log("[callback] Dispatching action:", JSON.stringify(action.actionValue));
-    console.log("[callback] Registered handlers:", Array.from(this.handlers.keys()));
-
-    // Look for a matching handler by checking action value keys
+  /** Dispatch a card action event. Returns the updated card if the handler provides one. */
+  async dispatch(action: CardAction): Promise<object | undefined> {
     for (const [key, handler] of this.handlers) {
       if (key in action.actionValue) {
-        console.log("[callback] Matched handler:", key);
         try {
-          await handler(action);
+          const result = await handler(action);
+          return result as object | undefined;
         } catch (err) {
           console.error("[callback] Handler error:", err);
           throw err;
         }
-        return;
       }
     }
-    console.warn("[callback] No handler for action:", action.actionValue);
+    return undefined;
   }
 }
