@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSy
 import { resolve, dirname, join } from "node:path";
 import { homedir } from "node:os";
 
-const STORE_DIR = resolve(homedir(), ".cc-feishu");
+const STORE_DIR = resolve(homedir(), ".cc-feishu-connector");
 const STORE_FILE = resolve(STORE_DIR, "sessions.json");
 const CLAUDE_PROJECTS_DIR = resolve(homedir(), ".claude", "projects");
 

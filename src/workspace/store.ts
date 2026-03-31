@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const STORE_DIR = join(homedir(), ".cc-feishu");
+const STORE_DIR = join(homedir(), ".cc-feishu-connector");
 const STORE_PATH = join(STORE_DIR, "workspaces.json");
 
 export class WorkspaceStore {
